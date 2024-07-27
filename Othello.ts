@@ -4,7 +4,7 @@ type Disc = 'B' | 'W' | null; //create Disc type can be B,W or NULL
 
 class Othello {
     private board: Disc[][];//create board 8*8
-    private currentPlayer: Disc;// track turn player
+    public currentPlayer: Disc;// track turn player
     private readonly directions: number[][] = [ //show directions that can place
         [-1, -1], [-1, 0], [-1, 1],
         [0, -1], [0, 1],
@@ -13,7 +13,7 @@ class Othello {
 
     constructor() {
         this.board = this.initBoard();
-        this.currentPlayer = 'B';//set player B start first ปัก
+        this.currentPlayer = 'B';//set player B start first 
     }
 
     private initBoard(): Disc[][] {
@@ -29,7 +29,7 @@ class Othello {
         return x >= 0 && x < 8 && y >= 0 && y < 8;// check player input correct
     }
 
-    private getOpponent(player: Disc): Disc {
+    private getOpponent(player: Disc): Disc {//ปัก
         return player === 'B' ? 'W' : 'B'; //change turn player
     }
 
@@ -122,6 +122,22 @@ public checkGameEnd(): void {
 
 }
 
+class Bot extends Othello {
+    constructor() {
+        super();
+    }
+
+    public botPlay(): void {
+        const validMoves = this.getValidMoves(this.currentPlayer);
+        if (validMoves.length > 0) {
+            // For now, just pick the first valid move
+            const [row, col] = validMoves[0];
+            this.makeMove(row, col, this.currentPlayer);
+        }
+    }
+    
+}
+
 // Game Loop with Input Handling
 const rl = readline.createInterface({
     input: process.stdin,
@@ -129,7 +145,7 @@ const rl = readline.createInterface({
 });
 
 const game = new Othello();
-
+const bot = new Bot();
 function displayValidMoves() {
     const validMoves = game.getValidMoves(game.getCurrentPlayer());
     console.log('Valid moves:', validMoves.map(move => `(${move[0]},${move[1]})`).join(', '));
@@ -175,5 +191,67 @@ function isValidInput(rowStr: string, colStr: string, row: number, col: number):
     if (row < 0 || row > 7 || col < 0 || col > 7) return false;
     return true;
 }
+async function selectMode(): Promise<string> {
+    return new Promise((resolve) => {
+        rl.question('Select mode (b = bot, p = player): ', (answer) => {
+            resolve(answer.trim());
+        });
+    });
+}
+async function bot_play() {
+    bot.printBoard();
+    const currentPlayer = bot.getCurrentPlayer();
+    console.log(`Current player: ${currentPlayer}`);
+    displayValidMoves();
+    if (currentPlayer === 'W') {
+        bot.botPlay();
+        if (bot.getValidMoves('B').length === 0 && bot.getValidMoves('W').length === 0) {
+            console.log('No valid moves left for both players. Game over!');
+            bot.checkGameEnd();
+            rl.close();
+            return;
+        } else {
+            bot_play(); // Continue the game after the bot's move
+        }
+    } else {
 
-promptMove();
+        rl.question('Enter your move (row,col): ', (input) => {
+            const [rowStr, colStr] = input.split(',');
+            const row = Number(rowStr);
+            const col = Number(colStr);
+
+            if (!isValidInput(rowStr, colStr, row, col)) {
+                console.log('Invalid input. Please enter your move in the format "row,col" with values between 0 and 7.');
+                bot_play(); // Prompt again for a valid move
+                return;
+            }
+
+            if (bot.makeMove(row, col, currentPlayer)) {
+                if (bot.getValidMoves('B').length === 0 && bot.getValidMoves('W').length === 0) {
+                    console.log('No valid moves left for both players. Game over!');
+                    bot.checkGameEnd();
+                    rl.close();
+                } else {
+                    bot_play(); // Continue the game after the player's move
+                }
+            } else {
+                console.log('Invalid move. Try again.');
+                bot_play(); // Prompt again for a valid move
+            }
+        });
+    }
+}
+async function main(){
+    const mode:string = await selectMode();
+    if (mode === 'p'){
+        promptMove();
+        }
+        else if (mode ==='b'){
+        bot_play();
+        }
+    }
+   
+    main().catch(error => {
+        console.error('An error occurred:', error);
+    });
+
