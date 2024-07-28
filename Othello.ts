@@ -1,257 +1,111 @@
+import Board from "./Board";
+import human_player from "./human_player";
+import BotPlayer from "./bot";
+import Player from "./Player";
 import * as readline from 'readline';
 
-type Disc = 'B' | 'W' | null; //create Disc type can be B,W or NULL
-
 class Othello {
-    private board: Disc[][];//create board 8*8
-    public currentPlayer: Disc;// track turn player
-    private readonly directions: number[][] = [ //show directions that can place
-        [-1, -1], [-1, 0], [-1, 1],
-        [0, -1], [0, 1],
-        [1, -1], [1, 0], [1, 1]
-    ];
+    private board: Board;
+    private player1!: Player;
+    private player2!: Player;
+    private rl: readline.Interface;
 
     constructor() {
-        this.board = this.initBoard();
-        this.currentPlayer = 'B';//set player B start first 
+        this.board = new Board();
+        this.rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
     }
 
-    private initBoard(): Disc[][] {
-        const board: Disc[][] = Array.from({ length: 8 }, () => Array(8).fill(null));
-        board[3][3] = 'W';
-        board[3][4] = 'B';
-        board[4][3] = 'B';
-        board[4][4] = 'W';
-        return board;//create board 
+    private async selectMode(): Promise<number> {
+        return new Promise((resolve) => {
+            const askQuestion = () => {
+                this.rl.question('Select mode (1 for Human vs Bot, 2 for Human vs Human): ', (input) => {
+                    const mode = Number(input.trim());
+                    if (mode === 1 || mode === 2) {
+                        resolve(mode);
+                        this.rl.close
+                    } else {
+                        console.log('Invalid selection. Please enter 1 or 2.');
+                        askQuestion();
+                    }
+                });
+            };
+            askQuestion();
+            
+        });
     }
 
-    private isOnBoard(x: number, y: number): boolean {
-        return x >= 0 && x < 8 && y >= 0 && y < 8;// check player input correct
-    }
-
-    private getOpponent(player: Disc): Disc {//ปัก
-        return player === 'B' ? 'W' : 'B'; //change turn player
-    }
-
-    private isValidMove(x: number, y: number, player: Disc): boolean {
-        if (this.board[x][y] !== null) return false; 
-
-        const opponent = this.getOpponent(player);
-        for (const [dx, dy] of this.directions) {
-            let nx = x + dx;
-            let ny = y + dy;
-            let hasOpponentDisc = false; //check position that player can play
-
-            while (this.isOnBoard(nx, ny) && this.board[nx][ny] === opponent) {
-                nx += dx;
-                ny += dy;
-                hasOpponentDisc = true;
-            }
-
-            if (hasOpponentDisc && this.isOnBoard(nx, ny) && this.board[nx][ny] === player) {
-                return true;
-            }
+    private setupGame(mode: number): void {
+        if (mode === 1) {
+            this.player1 = new human_player('B');
+            this.player2 = new BotPlayer('W');
+        } else if (mode === 2) {
+            this.player1 = new human_player('B');
+            this.player2 = new human_player('W');
         }
-        return false;
     }
 
-    public getValidMoves(player: Disc): [number, number][] {
-        const validMoves: [number, number][] = [];
-        for (let x = 0; x < 8; x++) {
-            for (let y = 0; y < 8; y++) {
-                if (this.isValidMove(x, y, player)) {
-                    validMoves.push([x, y]);
+    public async startGame() {
+        const mode = await this.selectMode();
+        this.setupGame(mode);
+        await this.gameLoop();
+        this.rl.close();
+    }
+
+    private async gameLoop() {
+        let currentPlayer = this.player1;
+
+        while (true) {
+            this.board.printBoard();
+            const validMoves = this.board.get_valid_moves(currentPlayer.get_color());
+            console.log(`Valid moves: ${validMoves.map(move => `(${move[0]},${move[1]})`).join(', ')}`);
+
+            if (validMoves.length > 0) {
+                const move = await currentPlayer.decide_move(this.board);
+                if (this.board.makeMove(move[0], move[1], currentPlayer.get_color())) {
+                    currentPlayer = currentPlayer === this.player1 ? this.player2 : this.player1;
+                } else {
+                    console.log('Invalid move, try again.');
                 }
-            }
-        }
-        return validMoves; //show position that player can play
-    }
-
-    private flipDiscs(x: number, y: number, player: Disc): void {
-        const opponent = this.getOpponent(player);
-
-        for (const [dx, dy] of this.directions) {
-            let nx = x + dx;
-            let ny = y + dy;
-            const discsToFlip: [number, number][] = [];
-
-            while (this.isOnBoard(nx, ny) && this.board[nx][ny] === opponent) {
-                discsToFlip.push([nx, ny]);
-                nx += dx;
-                ny += dy;
+            } else {
+                console.log(`No valid moves for ${currentPlayer.get_color()}, skipping turn.`);
+                currentPlayer = currentPlayer === this.player1 ? this.player2 : this.player1;
             }
 
-            if (this.isOnBoard(nx, ny) && this.board[nx][ny] === player) {
-                for (const [fx, fy] of discsToFlip) {
-                    this.board[fx][fy] = player;
-                }
+            // Check if both players have no valid moves
+            const player1Moves = this.board.get_valid_moves(this.player1.get_color());
+            const player2Moves = this.board.get_valid_moves(this.player2.get_color());
+
+            if (player1Moves.length === 0 && player2Moves.length === 0) {
+                break;
             }
         }
+
+        this.display_winner();
     }
-
-    public makeMove(x: number, y: number, player: Disc): boolean {
-        if (!this.isValidMove(x, y, player)) return false;
-
-        this.board[x][y] = player;
-        this.flipDiscs(x, y, player);
-        this.currentPlayer = this.getOpponent(player);
-        return true;
-    }
-
-    public getCurrentPlayer(): Disc {
-        return this.currentPlayer;
-    }
-
-    public printBoard(): void {
-        console.log(this.board.map(row => row.map(cell => cell || '.').join(' ')).join('\n'));
-    }
-public checkGameEnd(): void {
-    const bCount = this.board.flat().filter(cell => cell === 'B').length;
-    const wCount = this.board.flat().filter(cell => cell === 'W').length;
-
-    console.log(`Final Score - B: ${bCount}, W: ${wCount}`);
-
-    if (bCount > wCount) {
-        console.log('Player B wins!');
-    } else if (wCount > bCount) {
-        console.log('Player W wins!');
-    } else {
-        console.log('The game is a draw!');
-    }
-}
-
-}
-
-class Bot extends Othello {
-    constructor() {
-        super();
-    }
-
-    public botPlay(): void {
-        const validMoves = this.getValidMoves(this.currentPlayer);
-        if (validMoves.length > 0) {
-            // For now, just pick the first valid move
-            const [row, col] = validMoves[0];
-            this.makeMove(row, col, this.currentPlayer);
+    public display_winner() {
+        const winner = this.board.getWinner();
+        const scores = this.board.countDiscs();
+        const scoreMessage = `Score - Black (B): ${scores.B}, White (W): ${scores.W}`;
+        
+        switch (winner) {
+            case 'B':
+                console.log('Black (B) wins!');
+                break;
+            case 'W':
+                console.log('White (W) wins!');
+                break;
+            case 'D':
+                console.log('The game is a draw!');
+                break;
+            default:
+                console.log('The game is not over yet.');
         }
+        console.log(scoreMessage);
     }
     
 }
-
-// Game Loop with Input Handling
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
 const game = new Othello();
-const bot = new Bot();
-function displayValidMoves() {
-    const validMoves = game.getValidMoves(game.getCurrentPlayer());
-    console.log('Valid moves:', validMoves.map(move => `(${move[0]},${move[1]})`).join(', '));
-}
-
-function promptMove() {
-    game.printBoard();
-    const currentPlayer = game.getCurrentPlayer();
-    console.log(`Current player: ${currentPlayer}`);
-
-    displayValidMoves();
-
-    rl.question('Enter your move (row,col): ', (input) => {
-        const [rowStr, colStr] = input.split(',');
-        const row = Number(rowStr);
-        const col = Number(colStr);
-
-        if (!isValidInput(rowStr, colStr, row, col)) {
-            console.log('Invalid input. Please enter your move in the format "row,col" with values between 0 and 7.');
-            promptMove(); // Prompt again for a valid move
-            return;
-        }
-
-        if (game.makeMove(row, col, currentPlayer)) {
-            // Check if the game should end
-            const validMovesNext = game.getValidMoves(game.getCurrentPlayer());
-            if (validMovesNext.length === 0) {
-                console.log('No valid moves left for both players. Game over!');
-                game.checkGameEnd(); // Call to check the winner
-                rl.close(); // Close the input stream
-            } else {
-                promptMove(); // Continue the game
-            }
-        } else {
-            console.log('Invalid move. Try again.');
-            promptMove(); // Prompt again for a valid move
-        }
-    });
-}
-function isValidInput(rowStr: string, colStr: string, row: number, col: number): boolean {
-    if (!rowStr || !colStr) return false;
-    if (isNaN(row) || isNaN(col)) return false;
-    if (row < 0 || row > 7 || col < 0 || col > 7) return false;
-    return true;
-}
-async function selectMode(): Promise<string> {
-    return new Promise((resolve) => {
-        rl.question('Select mode (b = bot, p = player): ', (answer) => {
-            resolve(answer.trim());
-        });
-    });
-}
-async function bot_play() {
-    bot.printBoard();
-    const currentPlayer = bot.getCurrentPlayer();
-    console.log(`Current player: ${currentPlayer}`);
-    displayValidMoves();
-    if (currentPlayer === 'W') {
-        bot.botPlay();
-        if (bot.getValidMoves('B').length === 0 && bot.getValidMoves('W').length === 0) {
-            console.log('No valid moves left for both players. Game over!');
-            bot.checkGameEnd();
-            rl.close();
-            return;
-        } else {
-            bot_play(); // Continue the game after the bot's move
-        }
-    } else {
-
-        rl.question('Enter your move (row,col): ', (input) => {
-            const [rowStr, colStr] = input.split(',');
-            const row = Number(rowStr);
-            const col = Number(colStr);
-
-            if (!isValidInput(rowStr, colStr, row, col)) {
-                console.log('Invalid input. Please enter your move in the format "row,col" with values between 0 and 7.');
-                bot_play(); // Prompt again for a valid move
-                return;
-            }
-
-            if (bot.makeMove(row, col, currentPlayer)) {
-                if (bot.getValidMoves('B').length === 0 && bot.getValidMoves('W').length === 0) {
-                    console.log('No valid moves left for both players. Game over!');
-                    bot.checkGameEnd();
-                    rl.close();
-                } else {
-                    bot_play(); // Continue the game after the player's move
-                }
-            } else {
-                console.log('Invalid move. Try again.');
-                bot_play(); // Prompt again for a valid move
-            }
-        });
-    }
-}
-async function main(){
-    const mode:string = await selectMode();
-    if (mode === 'p'){
-        promptMove();
-        }
-        else if (mode ==='b'){
-        bot_play();
-        }
-    }
-   
-    main().catch(error => {
-        console.error('An error occurred:', error);
-    });
-
+game.startGame();
