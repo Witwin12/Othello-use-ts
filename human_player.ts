@@ -4,7 +4,10 @@ import Player from './Player';
 
 type Disc = 'B' | 'W' | null;
 
-class human_player extends Player {
+/**
+ * Class representing a human player.
+ */
+class HumanPlayer extends Player {
     private rl: readline.Interface;
 
     constructor(color: Disc) {
@@ -15,6 +18,11 @@ class human_player extends Player {
         });
     }
 
+    /**
+     * Prompts the human player to enter their move and validates the input.
+     * @param board - The current state of the board.
+     * @returns A promise that resolves to the coordinates of the move ([row, column]).
+     */
     public decide_move(board: Board): Promise<[number, number]> {
         return new Promise((resolve) => {
             const askMove = () => {
@@ -24,7 +32,6 @@ class human_player extends Player {
                     const col = Number(colStr);
 
                     if (!isNaN(row) && !isNaN(col) && board.isOnBoard(row, col)) {
-                        
                         resolve([row, col]);
                     } else {
                         console.log('Invalid input. Please enter numbers in the format (row,col) within the board limits.');
@@ -37,4 +44,4 @@ class human_player extends Player {
     }
 }
 
-export default human_player;
+export default HumanPlayer;
