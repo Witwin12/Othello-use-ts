@@ -1,9 +1,12 @@
 import Board from "./Board";
-import human_player from "./human_player";
+import HumanPlayer from "./human_player";
 import BotPlayer from "./bot";
 import Player from "./Player";
 import * as readline from 'readline';
 
+/**
+ * Class representing the Othello game.
+ */
 class Othello {
     private board: Board;
     private player1!: Player;
@@ -18,6 +21,10 @@ class Othello {
         });
     }
 
+    /**
+     * Prompts the user to select the game mode.
+     * @returns A promise that resolves to the selected game mode (1 for Human vs Bot, 2 for Human vs Human).
+     */
     private async selectMode(): Promise<number> {
         return new Promise((resolve) => {
             const askQuestion = () => {
@@ -25,7 +32,6 @@ class Othello {
                     const mode = Number(input.trim());
                     if (mode === 1 || mode === 2) {
                         resolve(mode);
-                        this.rl.close
                     } else {
                         console.log('Invalid selection. Please enter 1 or 2.');
                         askQuestion();
@@ -33,20 +39,26 @@ class Othello {
                 });
             };
             askQuestion();
-            
         });
     }
 
+    /**
+     * Sets up the game based on the selected mode.
+     * @param mode - The selected game mode.
+     */
     private setupGame(mode: number): void {
         if (mode === 1) {
-            this.player1 = new human_player('B');
+            this.player1 = new HumanPlayer('B');
             this.player2 = new BotPlayer('W');
         } else if (mode === 2) {
-            this.player1 = new human_player('B');
-            this.player2 = new human_player('W');
+            this.player1 = new HumanPlayer('B');
+            this.player2 = new HumanPlayer('W');
         }
     }
 
+    /**
+     * Starts the game.
+     */
     public async startGame() {
         const mode = await this.selectMode();
         this.setupGame(mode);
@@ -54,6 +66,9 @@ class Othello {
         this.rl.close();
     }
 
+    /**
+     * The main game loop.
+     */
     private async gameLoop() {
         let currentPlayer = this.player1;
 
@@ -85,6 +100,10 @@ class Othello {
 
         this.display_winner();
     }
+
+    /**
+     * Displays the winner of the game.
+     */
     public display_winner() {
         const winner = this.board.getWinner();
         const scores = this.board.countDiscs();
@@ -105,7 +124,7 @@ class Othello {
         }
         console.log(scoreMessage);
     }
-    
 }
+
 const game = new Othello();
 game.startGame();
