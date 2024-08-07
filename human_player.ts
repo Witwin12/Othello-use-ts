@@ -34,7 +34,10 @@ class HumanPlayer extends Player {
                     if (!isNaN(row) && !isNaN(col) && board.isOnBoard(row, col)) {
                         resolve([row, col]);
                     } else {
-                        console.log('Invalid input. Please enter numbers in the format (row,col) within the board limits.');
+                        console.log('Invalid move, try again.');
+                        const validMoves = board.get_valid_moves(this.color);
+                        board.printBoard();
+                        console.log(`Valid moves: ${validMoves.map(move => `(${move[0]},${move[1]})`).join(', ')}`);
                         askMove(); // Ask again without closing
                     }
                 });

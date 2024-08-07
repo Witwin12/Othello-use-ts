@@ -19,12 +19,16 @@ class BotPlayer extends Player {
     public decide_move(board: Board): Promise<[number, number]> {
         return new Promise((resolve) => {
             const botMoves = board.get_valid_moves(this.color);
+            setTimeout(() => {
+
             if (botMoves.length > 0) {
-                const [row, col] = botMoves[0];
-                resolve([row, col]);
+                    const [row, col] = botMoves[0];
+                    resolve([row, col]);
+
             } else {
                 throw new Error('No valid moves available for the bot.');
             }
+            }, 500); // set a delay bot time
         });
     }
 }

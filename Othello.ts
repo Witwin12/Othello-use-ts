@@ -30,7 +30,7 @@ class Othello {
             const askQuestion = () => {
                 this.rl.question('Select mode (1 for Human vs Bot, 2 for Human vs Human): ', (input) => {
                     const mode = Number(input.trim());
-                    if (mode === 1 || mode === 2) {
+                    if (mode === 1 || mode === 2 || mode === 3) {
                         resolve(mode);
                     } else {
                         console.log('Invalid selection. Please enter 1 or 2.');
@@ -53,6 +53,9 @@ class Othello {
         } else if (mode === 2) {
             this.player1 = new HumanPlayer('B');
             this.player2 = new HumanPlayer('W');
+        } else if (mode === 3 ){
+            this.player1 = new BotPlayer('B');
+            this.player2 = new BotPlayer('W');
         }
     }
 
@@ -97,7 +100,7 @@ class Othello {
                 break;
             }
         }
-
+        this.board.printBoard();
         this.display_winner();
     }
 
@@ -126,5 +129,5 @@ class Othello {
     }
 }
 
-const game = new Othello();
-game.startGame();
+
+export default Othello
