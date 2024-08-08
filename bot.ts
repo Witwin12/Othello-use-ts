@@ -28,7 +28,7 @@ class BotPlayer extends Player {
             } else {
                 throw new Error('No valid moves available for the bot.');
             }
-            }, 100); // set a delay bot time
+            }, 500); // set a delay bot time
         });
     }
 }
