@@ -2,7 +2,6 @@ import Board from "./Board";
 import HumanPlayer from "./human_player";
 import BotPlayer from "./bot";
 import Player from "./Player";
-import * as readline from 'readline';
 
 /**
  * Class representing the Othello game.
@@ -11,42 +10,16 @@ class Othello {
     private board: Board;
     private player1!: Player;
     private player2!: Player;
-    private rl: readline.Interface;
 
     constructor() {
         this.board = new Board();
-        this.rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-    }
-
-    /**
-     * Prompts the user to select the game mode.
-     * @returns A promise that resolves to the selected game mode (1 for Human vs Bot, 2 for Human vs Human).
-     */
-    private async selectMode(): Promise<number> {
-        return new Promise((resolve) => {
-            const askQuestion = () => {
-                this.rl.question('Select mode (1 for Human vs Bot, 2 for Human vs Human): ', (input) => {
-                    const mode = Number(input.trim());
-                    if (mode === 1 || mode === 2 || mode === 3) {
-                        resolve(mode);
-                    } else {
-                        console.log('Invalid selection. Please enter 1 or 2.');
-                        askQuestion();
-                    }
-                });
-            };
-            askQuestion();
-        });
     }
 
     /**
      * Sets up the game based on the selected mode.
      * @param mode - The selected game mode.
      */
-    private setupGame(mode: number): void {
+    public setupGame(mode: number): void {
         if (mode === 1) {
             this.player1 = new HumanPlayer('B');
             this.player2 = new BotPlayer('W');
@@ -63,10 +36,16 @@ class Othello {
      * Starts the game.
      */
     public async startGame() {
-        const mode = await this.selectMode();
-        this.setupGame(mode);
-        await this.gameLoop();
-        this.rl.close();
+        try {
+            await this.gameLoop();
+        } catch (e) {
+            if (e === 'main') {
+                console.log("Returning to main menu...");
+                return;
+            } else {
+                throw e;
+            }
+        }
     }
 
     /**
@@ -81,11 +60,19 @@ class Othello {
             console.log(`Valid moves: ${validMoves.map(move => `(${move[0]},${move[1]})`).join(', ')}`);
 
             if (validMoves.length > 0) {
-                const move = await currentPlayer.decide_move(this.board);
-                if (this.board.makeMove(move[0], move[1], currentPlayer.get_color())) {
-                    currentPlayer = currentPlayer === this.player1 ? this.player2 : this.player1;
-                } else {
-                    console.log('Invalid move, try again.');
+                try {
+                    const move = await currentPlayer.decide_move(this.board);
+                    if (this.board.makeMove(move[0], move[1], currentPlayer.get_color())) {
+                        currentPlayer = currentPlayer === this.player1 ? this.player2 : this.player1;
+                    } else {
+                        console.log('Invalid move, try again.');
+                    }
+                } catch (e) {
+                    if (e === 'main') {
+                        throw 'main';
+                    } else {
+                        throw e;
+                    }
                 }
             } else {
                 console.log(`No valid moves for ${currentPlayer.get_color()}, skipping turn.`);
@@ -129,5 +116,4 @@ class Othello {
     }
 }
 
-
-export default Othello
+export default Othello;
